@@ -27,27 +27,40 @@ var alvo_velocidade := 0.4
 var tempo_aleatorio := 0.0
 var current_reps := 0
 
+var _finalizado := false     # ← impede o minigame de continuar rodando após terminar
+var _troca_executada := false  # ← impede chamadas duplicadas de troca de cena
+
 func _ready():
 	await _carregar_skin(GameState.skin)
 	randomize()
+
 	barra.value = 0
 	progresso_barra.value = 0
 	rep_label.text = "%d / %d" % [current_reps, total_reps]
+
 	gerar_novo_alvo()
 
+
 func _process(delta):
+	# Se já terminou, não atualiza mais nada
+	if _finalizado:
+		return
+
 	atualizar_alvo(delta)
 	atualizar_barra_instavel(delta)
 	atualizar_progresso(delta)
 	atualizar_sprite_por_progresso()
+
 
 func atualizar_barra_instavel(delta):
 	if carregando:
 		progresso += carga_aceleracao * delta
 	else:
 		progresso -= regressao_velocidade * delta
+
 	progresso = clamp(progresso, 0.0, 1.0)
 	barra.value = progresso * barra.max_value
+
 
 func atualizar_progresso(delta):
 	if regredindo_total:
@@ -65,16 +78,16 @@ func atualizar_progresso(delta):
 
 		if progresso_reps >= 1.0:
 			current_reps += 1
-			if current_reps >= total_reps:
-				await atualizar_minigame2_no_banco()
-				TelaCarregamento.show_and_load(academia)
-				return
-			rep_label.text = "%d / %d" % [current_reps, total_reps]
-			print("✅ Repetição completa!", current_reps)
 
+			if current_reps >= total_reps:
+				_finalizar_minigame()
+				return
+
+			rep_label.text = "%d / %d" % [current_reps, total_reps]
 			regredindo_total = true
 			progresso_reps = 1.0
 			progresso_barra.value = progresso_reps * progresso_barra.max_value
+
 
 func atualizar_alvo(delta):
 	if not is_instance_valid(alvo):
@@ -96,17 +109,24 @@ func atualizar_alvo(delta):
 
 	alvo.position.y = altura_barra - altura_alvo - (alvo_pos * (altura_barra - altura_alvo))
 
+
 func _unhandled_input(event):
+	if _finalizado:
+		return
+
 	if regredindo_total:
 		return
+
 	if event.is_action_pressed("ui_accept"):
 		carregando = true
 	elif event.is_action_released("ui_accept"):
 		carregando = false
 
+
 func atualizar_sprite_por_progresso():
 	if not is_instance_valid(sprite):
 		return
+
 	var pct = progresso_reps
 	if pct < 0.25:
 		sprite.frame = 0
@@ -117,8 +137,29 @@ func atualizar_sprite_por_progresso():
 	else:
 		sprite.frame = 3
 
+
 func gerar_novo_alvo():
 	alvo_pos = randf_range(0.2, 0.8)
+
+
+# ===============================
+# FINALIZAÇÃO SEGURA DO MINIGAME
+# ===============================
+func _finalizar_minigame():
+	if _troca_executada:
+		return
+
+	_finalizado = true
+	_troca_executada = true
+
+	carregando = false
+
+	await atualizar_minigame2_no_banco()
+
+	# Troca de cena EXCLUSIVAMENTE pela tela de carregamento
+	TelaCarregamento.show_and_load(academia)
+
+
 
 # ===============================
 # BANCO DE DADOS (minigame2)
@@ -138,6 +179,7 @@ func atualizar_minigame2_no_banco() -> void:
 	var req = HTTPRequest.new()
 	add_child(req)
 	req.request(url, headers, HTTPClient.METHOD_PATCH, JSON.stringify(body))
+
 	var result = await req.request_completed
 	req.queue_free()
 
@@ -145,6 +187,7 @@ func atualizar_minigame2_no_banco() -> void:
 		print("✅ minigame2_completado atualizado com sucesso para o usuário:", GameState.user_id)
 	else:
 		push_warning("⚠ Falha ao atualizar minigame2_completado no banco.")
+
 
 func _carregar_skin(skin_id: int):
 	if not is_instance_valid(sprite):
