@@ -21,6 +21,7 @@ TelaCarregamento="*res://telas/tela_carregamento.tscn"
 GameState="*res://GameState.gd"
 Music="*res://MusicController.tscn"
 NetworkManager="*res://scripts/NetworkManager.gd"
+LocalDB="*res://scripts/LocalDB.gd"
 
 [display]
 

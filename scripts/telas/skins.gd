@@ -24,20 +24,15 @@ func _on_gian_pressed():
 func _on_isabella_pressed():
 	escolher_skin(4)
 
-# Função chamada quando o jogador escolhe uma skin
+# ----------------------------------------
+# Sistema 100% LOCAL, sem Supabase
+# ----------------------------------------
 func escolher_skin(num: int):
-	var url = GameState.SUPABASE_URL + "/rest/v1/progress?user_id=eq.%s" % GameState.user_id
-	var body = {"skin": num}
-	var headers = GameState.get_headers()
-	headers.append("Prefer: return=representation")
+	# salva no GameState
+	GameState.skin = num  
 
-	var req = HTTPRequest.new()
-	add_child(req)
-	req.request(url, headers, HTTPClient.METHOD_PATCH, JSON.stringify(body))
-	await req.request_completed
+	# (opcional) atualizar texto na tela
+	status_label.text = "Skin selecionada!"
 
-	# Atualiza no GameState
-	GameState.skin = num
-
-	# Vai para a primeira fase
+	# troca de cena usando sua tela de carregamento
 	TelaCarregamento.show_and_load("res://telas/fase_1.tscn")

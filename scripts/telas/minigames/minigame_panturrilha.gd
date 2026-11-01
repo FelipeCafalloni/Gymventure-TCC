@@ -154,7 +154,7 @@ func _finalizar_minigame():
 
 	carregando = false
 
-	await atualizar_minigame2_no_banco()
+	await atualizar_minigame2()
 
 	# Troca de cena EXCLUSIVAMENTE pela tela de carregamento
 	TelaCarregamento.show_and_load(academia)
@@ -164,30 +164,10 @@ func _finalizar_minigame():
 # ===============================
 # BANCO DE DADOS (minigame2)
 # ===============================
-func atualizar_minigame2_no_banco() -> void:
-	if not GameState.user_id:
-		push_error("Usuário não logado, não foi possível salvar progresso.")
-		return
-
+func atualizar_minigame2() -> void:
 	GameState.minigame2_completado = true
-
-	var url = "%s/rest/v1/progress?user_id=eq.%s" % [GameState.SUPABASE_URL, GameState.user_id]
-	var body = { "minigame2_completado": true }
-	var headers = GameState.get_headers()
-	headers.append("Prefer: return=representation")
-
-	var req = HTTPRequest.new()
-	add_child(req)
-	req.request(url, headers, HTTPClient.METHOD_PATCH, JSON.stringify(body))
-
-	var result = await req.request_completed
-	req.queue_free()
-
-	if result[0] == OK:
-		print("✅ minigame2_completado atualizado com sucesso para o usuário:", GameState.user_id)
-	else:
-		push_warning("⚠ Falha ao atualizar minigame2_completado no banco.")
-
+	GameState.salvar_progresso_global()
+	print("✅ Minigame 2 concluído (salvo localmente).")
 
 func _carregar_skin(skin_id: int):
 	if not is_instance_valid(sprite):

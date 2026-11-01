@@ -75,7 +75,7 @@ func _contar_repeticao():
 
 	if current_reps >= total_reps:
 		print("🏁 Minigame rosca completo! Salvando progresso...")
-		await atualizar_minigame2_no_banco()
+		await atualizar_minigame2()
 		TelaCarregamento.show_and_load(academia)
 		return
 
@@ -121,29 +121,13 @@ func _animar_sprite_erro():
 	pode_jogar = true
 
 
-func atualizar_minigame2_no_banco() -> void:
-	if not GameState.user_id:
-		push_error("Usuário não logado, não foi possível salvar progresso.")
-		return
 
+func atualizar_minigame2() -> void:
 	GameState.minigame2_completado = true
+	GameState.salvar_progresso_global()
+	print("✅ Minigame 2 concluído (salvo localmente).")
 
-	var url = "%s/rest/v1/progress?user_id=eq.%s" % [GameState.SUPABASE_URL, GameState.user_id]
-	var body = { "minigame2_completado": true }
-	var headers = GameState.get_headers()
-	headers.append("Prefer: return=representation")
 
-	var req = HTTPRequest.new()
-	add_child(req)
-	req.request(url, headers, HTTPClient.METHOD_PATCH, JSON.stringify(body))
-	var result = await req.request_completed
-	req.queue_free()
-
-	if result[0] == OK:
-		print("✅ minigame2_completado atualizado com sucesso para o usuário:", GameState.user_id)
-	else:
-		push_warning("⚠ Falha ao atualizar minigame2_completado no banco.")
-		
 func _carregar_skin(skin_id: int):
 	if not is_instance_valid(sprite):
 		return

@@ -4,21 +4,25 @@ extends Control
 @onready var config_btn := $ConfigBtn
 @onready var sair_btn := $SairBtn
 @onready var status_label := $StatusLabel
-@onready var op :=$Pause
+@onready var op := $Pause
+
 
 func _ready():
 	iniciar_btn.pressed.connect(_on_iniciar_pressed)
 	config_btn.pressed.connect(_on_config_pressed)
 	sair_btn.pressed.connect(_on_sair_pressed)
-	
+
 	# Mensagem de boas-vindas
 	if GameState.user_name != "":
 		status_label.text = "Olá, %s!" % GameState.user_name
 	else:
 		status_label.text = "Bem-vindo!"
 
-# --- Botão INICIAR ---
-func _on_iniciar_pressed() -> void:
+
+# ==========================================================
+# 🔵 BOTÃO INICIAR
+# ==========================================================
+func _on_iniciar_pressed():
 	if GameState.user_id == "":
 		status_label.text = "Faça login novamente."
 		return
@@ -28,9 +32,9 @@ func _on_iniciar_pressed() -> void:
 
 	# Verifica se tem skin escolhida
 	if GameState.skin == 0:
-		get_tree().change_scene_to_file("res://telas/skins.tscn")
+		TelaCarregamento.show_and_load("res://telas/skins.tscn")
 		return
-	
+
 	# Carrega a fase correta
 	match GameState.fase_atual:
 		1: TelaCarregamento.show_and_load("res://telas/fase_1.tscn")
@@ -38,45 +42,41 @@ func _on_iniciar_pressed() -> void:
 		3: TelaCarregamento.show_and_load("res://telas/fase_3.tscn")
 		_: TelaCarregamento.show_and_load("res://telas/fase_1.tscn")
 
-# --- Função para carregar o progresso do Supabase ---
-func carregar_progresso() -> void:
-	var url = "%s/rest/v1/progress?user_id=eq.%s" % [GameState.SUPABASE_URL, GameState.user_id]
-	var headers = GameState.get_headers()
-	headers.append("Prefer: return=representation")
 
-	var req = HTTPRequest.new()
-	add_child(req)
-	req.request(url, headers, HTTPClient.METHOD_GET)
-	var result = await req.request_completed
-	req.queue_free()
-
-	if result[0] != OK:
-		status_label.text = "Erro ao buscar progresso."
-		push_error("Menu: Falha ao carregar progresso do Supabase")
+# ==========================================================
+# 🔵 CARREGAR PROGRESSO – SOMENTE LOCAL
+# ==========================================================
+func carregar_progresso():
+	if not GameState.modo_local:
+		push_error("ERRO: modo_local está desligado, mas este menu é apenas local.")
 		return
 
-	var body_str = result[3].get_string_from_utf8()
-	var resposta = JSON.parse_string(body_str)
-	if typeof(resposta) != TYPE_ARRAY or resposta.size() == 0:
-		# Nenhum progresso encontrado, cria inicial
-		await criar_progresso_inicial(GameState.user_id)
+	var p = LocalDB.carregar_progresso(GameState.user_id)
+
+	if p == null:
+		# Nenhum progresso → cria padrão
+		criar_progresso_inicial()
 		return
 
-	var progress = resposta[0]
-	GameState.fase_atual = progress.get("fase_atual", 1)
-	GameState.posicao_x = progress.get("posicao_x", 0)
-	GameState.posicao_y = progress.get("posicao_y", 0)
-	GameState.minigame1_completado = progress.get("minigame1_completado", false)
-	GameState.minigame2_completado = progress.get("minigame2_completado", false)
-	GameState.skin = progress.get("skin", 0)
-	
-	print("Menu: progresso carregado -> Fase:", GameState.fase_atual, "Posição:", GameState.posicao_x, GameState.posicao_y, "Skin:", GameState.skin)
+	# Carrega dados no GameState
+	GameState.fase_atual = p.fase_atual
+	GameState.posicao_x = p.posicao_x
+	GameState.posicao_y = p.posicao_y
+	GameState.minigame1_completado = p.minigame1_completado
+	GameState.minigame2_completado = p.minigame2_completado
+	GameState.skin = p.skin
 
-# --- Cria progresso inicial caso não exista ---
-func criar_progresso_inicial(user_id: String) -> void:
-	var url = GameState.SUPABASE_URL + "/rest/v1/progress"
-	var body = {
-		"user_id": user_id,
+	print("Menu: progresso carregado localmente ->")
+	print("  Fase:", GameState.fase_atual)
+	print("  Posição:", GameState.posicao_x, GameState.posicao_y)
+	print("  Skin:", GameState.skin)
+
+
+# ==========================================================
+# 🔵 CRIAR PROGRESSO PADRÃO
+# ==========================================================
+func criar_progresso_inicial():
+	var dados = {
 		"fase_atual": 1,
 		"posicao_x": 0,
 		"posicao_y": 0,
@@ -84,24 +84,22 @@ func criar_progresso_inicial(user_id: String) -> void:
 		"minigame2_completado": false,
 		"skin": 0
 	}
-	var headers = GameState.get_headers()
-	headers.append("Prefer: return=representation")
 
-	var req = HTTPRequest.new()
-	add_child(req)
-	req.request(url, headers, HTTPClient.METHOD_POST, JSON.stringify(body))
-	await req.request_completed
-	req.queue_free()
+	LocalDB.salvar_progresso(GameState.user_id, dados)
+	print("Menu: progresso inicial criado.")
 
-	print("Menu: progresso inicial criado para o usuário:", user_id)
 
-# --- Botão CONFIGURAÇÕES ---
-func _on_config_pressed() -> void:
+# ==========================================================
+# 🔵 BOTÃO CONFIGURAÇÕES
+# ==========================================================
+func _on_config_pressed():
 	op.visible = true
 
-# --- Botão SAIR ---
-func _on_sair_pressed() -> void:
-	# Limpa dados do GameState
+
+# ==========================================================
+# 🔵 BOTÃO SAIR
+# ==========================================================
+func _on_sair_pressed():
 	GameState.user_id = ""
 	GameState.user_name = ""
 	GameState.fase_atual = 1

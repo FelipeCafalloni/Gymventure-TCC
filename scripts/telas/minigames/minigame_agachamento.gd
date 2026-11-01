@@ -88,7 +88,7 @@ func finalizar_carregamento():
 		_set_sprite_frame(2)
 
 		if current_reps >= total_reps:
-			await atualizar_minigame1_no_banco()
+			await atualizar_minigame1()
 			TelaCarregamento.show_and_load(academia)
 			return
 	else:
@@ -122,28 +122,11 @@ func _set_sprite_frame(f: int):
 
 
 # --- Atualiza o progresso do minigame3 no banco ---
-func atualizar_minigame1_no_banco() -> void:
-	if not GameState.user_id:
-		push_error("Usuário não logado, não foi possível salvar progresso.")
-		return
-
+func atualizar_minigame1() -> void:
 	GameState.minigame1_completado = true
+	GameState.salvar_progresso_global()
+	print("✅ Minigame 1 concluído (salvo localmente).")
 
-	var url = "%s/rest/v1/progress?user_id=eq.%s" % [GameState.SUPABASE_URL, GameState.user_id]
-	var body = { "minigame1_completado": true }
-	var headers = GameState.get_headers()
-	headers.append("Prefer: return=representation")
-
-	var req = HTTPRequest.new()
-	add_child(req)
-	req.request(url, headers, HTTPClient.METHOD_PATCH, JSON.stringify(body))
-	var result = await req.request_completed
-	req.queue_free()
-
-	if result[0] == OK:
-		print("✅ minigame1_completado atualizado com sucesso para o usuário:", GameState.user_id)
-	else:
-		push_warning("⚠ Falha ao atualizar minigame3_completado no banco.")
 
 
 # --- Define a textura conforme a skin salva ---
